@@ -1,17 +1,209 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Machine Sparepart</title>
-<link rel="stylesheet" href="css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบจัดการอะไหล่เครื่องจักร</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<header><h1>Machine Spare Parts Management System</h1></header>
-<main>
-<div class="card"><h2>Dashboard</h2><p>เชื่อมต่อ Google Apps Script ได้ในขั้นตอนถัดไป</p>
-<button onclick="loadSummary()">โหลดข้อมูล</button>
-<pre id="out"></pre></div>
-</main>
-<script src="js/app.js"></script>
-</body></html>
+  <header>
+    <div class="container">
+      <div class="header-top">
+        <h1>🔧 ระบบจัดการอะไหล่เครื่องจักร</h1>
+        <div class="url-input-group">
+          <input id="scriptUrl" type="url" placeholder="https://script.google.com/macros/s/..../exec" class="url-input" readonly>
+          <span class="status-indicator" title="ตั้งค่าอัตโนมัติ">✓</span>
+          <button id="reloadBtn" class="btn-reload" title="โหลดข้อมูล">↻</button>
+        </div>
+      </div>
+      <div id="status" class="status-bar"></div>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="dashboard">📊 แดชบอร์ด</button>
+      <button class="tab-btn" data-tab="items">📋 รายการ</button>
+      <button class="tab-btn" data-tab="search">🔍 ค้นหา</button>
+      <button class="tab-btn" data-tab="add">➕ เพิ่มรายการ</button>
+    </div>
+
+    <!-- Dashboard Tab -->
+    <div id="dashboard" class="tab-content active">
+      <div class="stats-grid">
+        <div class="stat-card">
+          <h3>🧦 รายการวันนี้</h3>
+          <p class="stat-value" id="todayItems">-</p>
+        </div>
+        <div class="stat-card">
+          <h3>📋 รายการเดือนนี้</h3>
+          <p class="stat-value" id="monthItems">-</p>
+        </div>
+        <div class="stat-card">
+          <h3>📅 จำนวนรวม</h3>
+          <p class="stat-value" id="totalQty">-</p>
+        </div>
+        <div class="stat-card">
+          <h3>🔧 เครื่องจักรยอดนิยม</h3>
+          <p class="stat-value" id="topMachine">-</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>รายการล่าสุด</h2>
+        <div id="recentList" class="items-list"></div>
+      </div>
+    </div>
+
+    <!-- Items Tab -->
+    <div id="items" class="tab-content">
+      <div class="card">
+        <h2>ทุกรายการ</h2>
+        <div class="table-wrapper">
+          <table id="itemsTable">
+            <thead>
+              <tr>
+                <th>📅 Date</th>
+                <th>⏰ Time</th>
+                <th>🔧 Machine</th>
+                <th>🎫 Type</th>
+                <th>🧦 Part</th>
+                <th>📄 Reason</th>
+                <th>📋 Qty</th>
+              </tr>
+            </thead>
+            <tbody id="itemsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Tab -->
+    <div id="search" class="tab-content">
+      <div class="card">
+        <h2>ค้นหารายการ</h2>
+        <input id="searchInput" type="text" placeholder="ค้นหาตามเครื่องจักร อะไหล่ หรือเหตุผล..." class="search-input">
+        <div id="searchResults" class="table-wrapper" style="margin-top: 1.5rem;">
+          <table>
+            <thead>
+              <tr>
+                <th>📅 Date</th>
+                <th>⏰ Time</th>
+                <th>🔧 Machine</th>
+                <th>🎫 Type</th>
+                <th>🧦 Part</th>
+                <th>📄 Reason</th>
+                <th>📋 Qty</th>
+              </tr>
+            </thead>
+            <tbody id="searchBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Add Item Tab -->
+    <div id="add" class="tab-content">
+      <div class="card">
+        <h2>➕ เพิ่มรายการใหม่</h2>
+        <form id="addForm">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="date">📅 วันที่เปลี่ยน</label>
+              <input type="date" id="date" required>
+            </div>
+
+            <div class="form-group">
+              <label for="time">⏰ เวลาที่เปลี่ยน</label>
+              <input type="time" id="time" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="department">🏭 แผนก</label>
+              <select id="department" required>
+                <option value="">-- เลือกแผนก --</option>
+                <option value="แผนก 1">แผนก 1</option>
+                <option value="แผนก 2">แผนก 2</option>
+                <option value="แผนก 3">แผนก 3</option>
+                <option value="อื่น ฯ">อื่น ฯ</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="machineCode">🔧 ทะเบียนเครื่อง</label>
+              <div class="input-with-scan">
+                <select id="machineCode" required>
+                  <option value="">-- เลือกเครื่อง --</option>
+                  <option value="EMB-0001">EMB-0001</option>
+                  <option value="EMB-0002">EMB-0002</option>
+                  <option value="EMB-0003">EMB-0003</option>
+                  <option value="EMB-0004">EMB-0004</option>
+                  <option value="CTM-0014">CTM-0014</option>
+                  <option value="อื่น ฯ">อื่น ฯ</option>
+                </select>
+                <button type="button" class="btn-scan" title="สแกน QR Code">📱 QR</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="part">🧦 อะไหล่ที่เปลี่ยน</label>
+            <input type="text" id="part" placeholder="เช่น นิด, แมกนัท, ลูกปืน" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="reason">📄 สาเหตุการเปลี่ยน</label>
+              <select id="reason" required>
+                <option value="">-- เลือกสาเหตุ --</option>
+                <option value="Damaged">เสียหาย</option>
+                <option value="Maintenance">บำรุงรักษา</option>
+                <option value="Preventive">ป้องกัน</option>
+                <option value="Upgrade">อัปเกรด</option>
+                <option value="Other">อื่น ฯ</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="reasonDetail">💬 ระบุสาเหตุ</label>
+              <input type="text" id="reasonDetail" placeholder="อธิบายเหตุผลเพิ่มเติม">
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="qty">📋 จำนวน</label>
+              <div class="quantity-control">
+                <button type="button" class="qty-btn" id="qtyMinus">−</button>
+                <input type="number" id="qty" placeholder="1" min="1" value="1" required readonly>
+                <button type="button" class="qty-btn" id="qtyPlus">+</button>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label for="technician">👨‍🔧 ช่างที่เปลี่ยน</label>
+              <select id="technician" required>
+                <option value="">-- เลือกช่าง --</option>
+                <option value="วีเทพ">วีเทพ</option>
+                <option value="มนุษย์">มนุษย์</option>
+                <option value="สมชาย">สมชาย</option>
+                <option value="อื่น ฯ">อื่น ฯ</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">💾 บันทึกรายการ</button>
+            <button type="reset" class="btn-secondary">ล้าง</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/app.js"></script>
+</body>
+</html>
